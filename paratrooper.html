@@ -1,0 +1,33 @@
+<html>
+	<head>
+    	<script src="phaser/build/phaser.js"></script>
+    	<script src="paratrooper/boot.js"></script>
+		<script src="paratrooper/preload.js"></script>
+		<script src="paratrooper/gametitle.js"></script>
+		<script src="paratrooper/thegame.js"></script>
+		<script src="paratrooper/gameover.js"></script>	
+    		<style>
+    			body{margin:0}
+    			#center {
+    				margin: 100px auto;
+    				width: 66%;
+    				height: 75%;
+    			}
+    		</style>
+    </head>
+    <body>
+    	<div id="center">
+    		<script>
+			(function() {
+				var game = new Phaser.Game(1280, 720, Phaser.CANVAS, 'center');
+				game.state.add("Boot",boot);
+				game.state.add("Preload",preload);
+				game.state.add("GameTitle",gameTitle);
+				game.state.add("TheGame",theGame);
+				game.state.add("GameOver",gameOver);
+				game.state.start("Boot");
+			})();    
+			</script>
+		</div>
+    </body>
+</html>
