@@ -11,12 +11,12 @@ function dropSoldier(plane,game) {
         //wenn "plane" existiert und jeweils 50 Pixel vom linken bzw. rechten Rand entfernt ist
         if (j == 100 && game.time.now > nextSoldier && (plane.x <= game.world.width-50 && plane.x >= 50) && (plane.x<=game.world.width/2-50 || plane.x>=game.world.width/2+50)) {
             var i = game.rnd.realInRange(0.1,1);
-            nextSoldier = game.time.now + soldierDropRate * 1000 * i;
+            nextSoldier = game.time.now + soldierDropRate * i;
             this.createTrooper(plane,game);
         }
 }
 
-function createTrooper(plane,game) {
+function createTrooper(plane,game,type) {
     //Für jeden Paratrooper wird eine Minigruppe erstellt
     paratrooper = game.make.group();
     //in ihr wird ein Fallschirm erzeugt (+30 Pixel um versetzten Anker auszugleichen)
@@ -126,10 +126,21 @@ function splatSoldier(boden,fallingSoldier) {
 
 function landSoldier(soldier,parachute,game) {
     parachute.kill();
+    soldier.loadTexture('landedSoldier',0);
+    soldier.animations.add('shoot',null,15,true,true);
+    soldier.animations.play('shoot');
     soldier.body.gravity.y = 500;
-    soldier.body.setSize(10,40,0,0);
+    soldier.body.setSize(10,40,8,0);
     landedSoldiers.add(soldier);
-    if (soldier.y <= game.world.height-119){
+    //timer überprüft nach einer Sekunde mit checkSoldierHeight, ob der Soldat über 120 Pixel hinaus ragt,
+    //um GameOver direkt bei Landung eines dritten Soldaten zu vermeiden
+    var timer = game.time.create(true);
+    timer.add(1000,this.checkSoldierHeight,this,soldier,game);
+    timer.start();
+}
+
+function checkSoldierHeight(soldier,game) {
+    if (soldier.y <= game.world.height-119) {
         game.state.start("GameOver",true,false,score);
     }
 }

@@ -1,13 +1,21 @@
 var startLeft = true; //boolean-Wert für Startseite des Jets
 
-function spawnPlane(game) {
+function spawnPlane(game,type) {
 	//in zufälligem Zeitabstand Flugzeuge erzeugen
 	
 		//erstes Flugzeug aus Gruppe wählen
-		var plane = planes.getFirstDead();
+		//var plane = planes.getFirstDead();
 		//Flugzeug in planes-Gruppe erstelen
-		//var plane = planes.create(0,(game.world.height-500)*Math.random(),'plane');
-		plane.animations.add('propeller',null, 24, true,true);
+		if (type == 1) {
+			var plane = planes.create(0,(game.world.height-500)*Math.random(),'helicopter');
+			plane.health = 10;
+		}
+		else {
+			var plane = planes.create(0,(game.world.height-500)*Math.random(),'plane');
+			plane.health = 15;
+		}
+		plane.animations.add('propeller',[0,1,2,3,4,5], 24, true,true);
+		plane.animations.add('burn',[6,7,8,9,10,11], 24, true,true);
 		plane.animations.play('propeller');
 		plane.anchor.set(0.5);
 		planes.setAll('checkWorldBounds',true);
@@ -16,8 +24,8 @@ function spawnPlane(game) {
 		//wenn Zufallszahl 1, Flugzeug links erzeugen und nach rechts fliegen lassen
 		if (i==1) { 
 			//var plane = planes.create(0,(game.world.height-500)*Math.random(),'plane');
-			plane.reset(0,(game.world.height-500)*Math.random());
-			plane.health = 10;
+			plane.x = 0;
+			plane.y = (game.world.height-500)*Math.random();
 			game.physics.arcade.moveToXY(plane,game.world.width,(game.world.height-500)*Math.random(),100);
 			//wenn sprite gespiegelt ist, spiegele es zurück
 			if (plane.scale.x < 0) {plane.scale.x *= -1;}
@@ -25,8 +33,8 @@ function spawnPlane(game) {
 		//andernfalls wenn Zufallszahl 2, Flugzeug rechts erzeugen und nach links fliegen lassen
 		else if (i == 2) {
 			//var plane = planes.create(game.world.width,(game.world.height-500)*Math.random(),'plane');
-			plane.reset(game.world.width,(game.world.height-500)*Math.random());
-			plane.health = 10;
+			plane.x = game.world.width;
+			plane.y = (game.world.height-500)*Math.random();
 			game.physics.arcade.moveToXY(plane,0,(game.world.height-500)*Math.random(),100);
 			//wenn sprite nicht gespiegelt, spiegele es
 			if (plane.scale.x > 0) {plane.scale.x *= -1;}
@@ -42,9 +50,9 @@ function planeTurnTimer(plane,game) {
 	//plane.body.velocity.setTo(0,0);
 	//Zufallszahl und Timer erstellen
 	var i = game.rnd.integerInRange(1,5);
-	var timer = game.time.create(false);
+	var timer = game.time.create(true);
 	//planeTurn-Funktion zum Timer hinzufügen und nach zufälliger Zeit entsprechend der üblichen planeSpawnRate aufrufen
-	timer.add(planeSpawnRate * 1000 * i,this.planeTurn,this,plane,game);
+	timer.add(planeSpawnRate * i,this.planeTurn,this,plane,game);
 	timer.start();
 }
 
@@ -65,20 +73,20 @@ function explodePlane(bullet,plane,game) {
 	if (plane.health >= 0) { 
 		plane.health -= bulletStrength;
 		if (plane.health <= 5) { 
-			plane.loadTexture('plane_burn',0);
-			plane.animations.play('propeller');
+			plane.animations.play('burn');
+			//plane.animations.play('propeller');
 		}
 	}
 	else if (plane.health <= 0) {
 		debris.x = plane.x;
 		debris.y = plane.y;
-		debris.start(true,5000,null,3);
+		debris.start(true,10000,null,3);
 		plane.destroy();
 		score += 100;
 		planeCount += 1;
 		//nextPlane-Zeit zurücksetzen, damit nach Abschuss nicht sofort ein neues Flugzeug auftaucht
 		var i = game.rnd.integerInRange(3,9);
-		nextPlane = game.time.now + planeSpawnRate * 1000 * i;
+		nextPlane = game.time.now + planeSpawnRate * i;
 	}	
 	bullet.kill();
 }

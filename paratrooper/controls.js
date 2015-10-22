@@ -34,7 +34,13 @@ function controls(game) {
 
 	//Feuern auf Maus/aktiven Zeiger oder Leertaste
 	if (game.input.activePointer.isDown || game.input.keyboard.isDown(Phaser.Keyboard.SPACEBAR)){
+		//kanone.frame = 1;
+		kanone.animations.play('shoot');
 		fire(game,bullets,kanone,score);
+	}
+	else {
+		kanone.animations.stop('shoot');
+		kanone.frame = 0;
 	}
 }
 
@@ -61,6 +67,7 @@ function fire(game) {
 		//Mauszeiger oberhalb der Kanone -> Schüsse gehen Richtung Mauszeiger
 		else {game.physics.arcade.moveToXY(bullet,p.x,p.y,bulletSpeed);}
 
+		shotsFired += 1;
 		score -= 1;
 	}
 }
