@@ -8,11 +8,11 @@ function spawnPlane(game,type) {
 		//Flugzeug in planes-Gruppe erstelen
 		if (type == 1) {
 			var plane = planes.create(0,(game.world.height-500)*Math.random(),'helicopter');
-			plane.health = 10;
+			plane.health = 8;
 		}
 		else {
 			var plane = planes.create(0,(game.world.height-500)*Math.random(),'plane');
-			plane.health = 15;
+			plane.health = 16;
 		}
 		plane.animations.add('propeller',[0,1,2,3,4,5], 24, true,true);
 		plane.animations.add('burn',[6,7,8,9,10,11], 24, true,true);
@@ -78,6 +78,10 @@ function explodePlane(bullet,plane,game) {
 		}
 	}
 	else if (plane.health <= 0) {
+		var explosion = explosions.getFirstExists(false);
+		explosion.animations.add('explode',null,30,false);
+    	explosion.reset(plane.body.x, plane.body.y);
+    	explosion.play('explode', 30, false, true);
 		debris.x = plane.x;
 		debris.y = plane.y;
 		debris.start(true,10000,null,3);

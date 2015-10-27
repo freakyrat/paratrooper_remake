@@ -32,31 +32,32 @@ var theGame = function(game){
 //Level-Variablen
 soldierCount = 0;
 planeCount = 0;
-levelCount = 1;
-level = 1;
-planeLimit = 5; //+1 nach jedem 10. Level =15 in Level 100
+levelCount = 0;
+level = 0;
+planeLimit = 3; //+1 nach jedem 10. Level =13 in Level 100
 
 //Schuss/Kugel-Variablen
-fireRate = 300;
+fireRate = 500;
 nextFire = 0;
 bulletSpeed = 500;
 bulletStrength = 1;
 
 //getrennte spawnRates um Flugzeug-Rate ggf. getrennt zu erhöhen
-//Zeitfaktor zur Berechnung des Zeitabstands zwischen Erstellung von Flugzeugen/Soldaten in Sekunden
-planeSpawnRate = 1000; //-50 nach jedem 10. Level =500 in Level 100
-jetSpawnRate = 60;
-soldierDropRate = 1000; //-5 nach jedem Level =500 in Level 100
+//Zeitfaktor zur Berechnung des Zeitabstands zwischen Erstellung von Flugzeugen/Soldaten in Millisekunden
+//Minusbedingungen der Startwerte nur für eventuelle Angabe eines anderen Startlevels
+planeSpawnRate = 1000-(Math.floor(level/10)*50); //-50 nach jedem 10. Level =500 in Level 100
+jetSpawnRate = 60000;
+soldierDropRate = 1000-level*5; //-5 nach jedem Level =500 in Level 100
 
-//Wahrscheinlichkeit für dropSoldier()
-soldierProbability = level-1; //-1 damit 99 in Level 100. Erhöht Wechsel zwischen Flugzeugen
-planeProbability = 0; //+1 nach jedem 10. Level =10 in Level 100, entspricht 100% Wahrscheinlichkeit
+//Wahrscheinlichkeit für dropSoldier() und spawnPlane()
+soldierProbability = level-1; //-1 damit 99 in Level 100 -> Erhöht Wechsel zwischen Flugzeugen
+planeProbability = 0+(Math.floor(level/10)); //+1 nach jedem 10. Level =10 in Level 100, entspricht 100% Wahrscheinlichkeit
 
 //next-Variablen für minimalen Zeitabstand zwischen Flugzeugen/Soldaten in Millisekunden
 //Vorbelegung gilt nur für erstes jeweiliges Objekt
-nextPlane = 0;
-nextJet = 5000;
-nextSoldier = 100;
+nextPlane = 1000*Math.random();
+nextJet = 60000*Math.random();
+nextSoldier = 1000*Math.random();
 
 //Variable für Zeitabstand zwischen "Schüssen" der gelandeten Soldaten
 decreaseHealthTime = 0;
@@ -73,15 +74,16 @@ theGame.prototype = {
 create: function() {
 	this.game.physics.startSystem(Phaser.Physics.ARCADE);
 
-	sky = this.game.add.sprite(0,0,'sky');
-	sky.scale.x *= 2;
-	sky.scale.y *= 2;
+	sky_top = this.game.add.sprite(0,0,'sky_top');
+	sky_middle = this.game.add.sprite(0,220,'sky_middle');
+	mountains = this.game.add.sprite(0,500,'mountains');
 
-	boden = this.game.add.sprite(0,this.game.world.height-30,'ground');
+	boden = this.game.add.sprite(this.game.world.width/2,this.game.world.height,'ground');
 	this.game.physics.arcade.enable(boden);
 	boden.enableBody = true;
 	boden.body.immovable = true;
-	boden.scale.x *= 2;
+	boden.anchor.set(0.5,1);
+	boden.body.setSize(1280,30,0,0);
 
 	bullets = this.game.add.group();
 	bullets.enableBody = true;
@@ -110,6 +112,7 @@ create: function() {
 
     landedSoldiers = this.game.add.group();
 
+    fallingChutes = this.game.add.group();
     fallingSoldiers = this.game.add.group();
 
     upgrades = this.game.add.group();
@@ -117,6 +120,9 @@ create: function() {
     blood = this.game.add.emitter(0,0,1000);
     blood.makeParticles('blood');
     blood.gravity.y=100;
+
+    explosions = this.game.add.group();
+    explosions.createMultiple(30, 'explode');
 
     debris = this.game.add.emitter(0,0,100);
     debris.makeParticles('debris');
@@ -128,12 +134,45 @@ create: function() {
     killsText = this.game.add.bitmapText(10, 24, 'carrier_command','KILLS: ' + killCount,14);
     planeText = this.game.add.bitmapText(10, 38, 'carrier_command','PLANE: ' + (level-planeCount),14);
     levelText = this.game.add.bitmapText(10, 52, 'carrier_command','LEVEL: ' + level,14);
+    healthText = this.game.add.bitmapText(10, 66, 'carrier_command','HEALTH: ' + basis.health,14);
 },
 
 update: function() {
 
 	//Funktion für Steuerung aus controls.js aufrufen
 	controls(this.game);
+
+	
+	//Bedingungen und Aufrufe der spawnPlane()- und dropSoldier()-Funktionen
+	if (this.game.time.now > nextPlane && planes.countLiving() < level && planes.countLiving() < planeLimit) {
+	 	var j = this.game.rnd.realInRange(3,10);
+	 	nextPlane = this.game.time.now + planeSpawnRate * j;
+	 	if (level <= 5) {
+			spawnPlane(this.game,type=1);
+	 	}
+	 	else {
+	 		var k = this.game.rnd.integerInRange(planeProbability,10);
+	 		if (k==10) { spawnPlane(this.game,type=2); }
+	 		else { spawnPlane(this.game,type=1); }
+	 	}
+	}
+
+	if (this.game.time.now > nextJet) {
+	 	var j = this.game.rnd.realInRange(5,10);
+	 	nextJet = this.game.time.now + jetSpawnRate * j;
+		spawnJet(this.game);
+	}
+
+	if (planes.length != 0){
+		var i=0;
+    	while (planes.length>i) {
+			dropSoldier(planes.children[i],this.game);
+			i++;
+		}
+	}
+
+	//trooperCheck durchläuft alle aktiven Paratrooper und überprüft ob Fallschirme vorhanden etc. (soldiers.js)
+	trooperCheck(this.game);
 
 	//Bedingungen zum Beenden eines Levels:
 	if (planeCount >= level){
@@ -169,41 +208,11 @@ update: function() {
 	}
 	//weitere GameOver-Bedingung (Turm aus 3 Soldaten/Soldat höher als 120 Pixel) in landSoldier-Funktion in soldiers.js
 
-
-	if (this.game.time.now > nextPlane && planes.countLiving() < level && planes.countLiving() < planeLimit) {
-	 	var j = this.game.rnd.realInRange(3,10);
-	 	nextPlane = this.game.time.now + planeSpawnRate * j;
-	 	if (level <= 5) {
-			spawnPlane(this.game,type=1);
-	 	}
-	 	else {
-	 		var k = this.game.rnd.integerInRange(planeProbability,10);
-	 		if (k==10) { spawnPlane(this.game,type=2); }
-	 		else { spawnPlane(this.game,type=1); }
-	 	}
-	}
-
-	if (this.game.time.now > nextJet) {
-	 	var j = this.game.rnd.realInRange(5,10);
-	 	nextJet = this.game.time.now + jetSpawnRate * 1000 * j;
-		spawnJet(this.game);
-	}
-
-	if (planes.length != 0){
-		var i=0;
-    	while (planes.length>i) {
-			dropSoldier(planes.children[i],this.game);
-			i++;
-		}
-	}
-
-	//trooperCheck durchläuft alle aktiven Paratrooper und überprüft ob Fallschirme vorhanden etc. (soldiers.js)
-	trooperCheck(this.game);
-
 	scoreText.text = "SCORE: " + score;
 	levelText.text = "LEVEL: " + level;
 	planeText.text = "PLANE: " + (level-planeCount);
 	killsText.text = "KILLS: " + killCount;
+	healthText.text = "HEALTH:" + Math.round(basis.health) + '%';
 
 
 	//wenn eine Kugel auf ein Flugzeug trifft, explodePlane-Funktion ausführen
@@ -216,15 +225,20 @@ update: function() {
 	},null,this);
 	//this.game.physics.arcade.collide(fallingSoldiers,paratroopers,soldierCollision,null,this);
 	this.game.physics.arcade.collide(fallingSoldiers,landedSoldiers,soldierCollision,null,this);
-	this.game.physics.arcade.collide(debris,boden);
+	this.game.physics.arcade.collide(boden,debris,this.destroyObject,null,this);
+	this.game.physics.arcade.collide(boden,fallingChutes,landParachute,null,this);
 	this.game.physics.arcade.collide(debris,fallingSoldiers,soldierCollision,null,this);
 	this.game.physics.arcade.collide(debris,landedSoldiers,soldierCollision,null,this);
 	this.game.physics.arcade.collide(upgrades,fallingSoldiers,soldierCollision,null,this);
 	this.game.physics.arcade.collide(upgrades,landedSoldiers,soldierCollision,null,this);
-	this.game.physics.arcade.collide(boden,upgrades);
+	this.game.physics.arcade.collide(boden,upgrades,useUpgrade,null,this);
 	this.game.physics.arcade.collide(boden,landedSoldiers);
 	this.game.physics.arcade.collide(landedSoldiers);
 
+},
+
+destroyObject: function(obj1,obj2) {
+	obj2.kill();
 },
 
 //  _   _ _   _ ____      _____         _   
@@ -240,7 +254,11 @@ render: function() {
  //    this.game.debug.text('Planes left: '+ planes.length + ' Zeit: ' + this.game.time.now, 32, 48);
  //    this.game.debug.text('Paratroopers: ' + paratroopers.children.length, 32, 60);
  //    this.game.debug.text('landedSoldiers: ' + landedSoldiers.children.length, 32, 72);
-    this.game.debug.text('Base Health: ' + basis.health, 32, 96);
+    // this.game.debug.text('Base Health: ' + basis.health, 32, 96);
+    // this.game.debug.text('soldierDropRate: ' + soldierDropRate, 32,110);
+    // this.game.debug.text('planeSpawnRate: ' + planeSpawnRate, 32,124);
+    // this.game.debug.text('soldierProbability: ' + soldierProbability, 32,138);
+    // this.game.debug.text('planeProbability: ' + planeProbability, 32,152);
     this.game.debug.text(this.game.time.fps || '--', 2, 14, "#00ff00");
     //this.game.debug.spriteInfo(kanone, 32, 450);
 

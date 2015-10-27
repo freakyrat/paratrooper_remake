@@ -1,10 +1,3 @@
-//  ____        _     _       _             
-// / ___|  ___ | | __| | __ _| |_ ___ _ __  
-// \___ \ / _ \| |/ _` |/ _` | __/ _ \ '_ \ 
-//  ___) | (_) | | (_| | (_| | ||  __/ | | |
-// |____/ \___/|_|\__,_|\__,_|\__\___|_| |_|
-//
-
 function dropSoldier(plane,game) {
         var j = game.rnd.integerInRange(soldierProbability,100);
         //Abwurf des Soldaten mit Fallschirm nach zufälliger Zeit, abhängig von soldierDropRate, 
@@ -21,8 +14,10 @@ function createTrooper(plane,game,type) {
     paratrooper = game.make.group();
     //in ihr wird ein Fallschirm erzeugt (+30 Pixel um versetzten Anker auszugleichen)
     var parachute = paratrooper.create(plane.x,plane.y+30,'parachute');
-    //Anker des Fallschirms auf untere Mitte setzen
+    //Anker des Fallschirms auf Mitte setzen
     parachute.anchor.setTo(0.5,1);
+    
+    
     //Soldaten in der Paratrooper-Gruppe erzeugen
     var soldier = paratrooper.create(plane.x,plane.y+25,'soldier');
     //Anker auf obere Mitte des Soldaten setzen
@@ -36,6 +31,8 @@ function createTrooper(plane,game,type) {
     game.physics.arcade.enable(parachute);
     soldier.enableBody = true;
     parachute.enableBody = true;
+    //body des fallschirms verkleinern, damit er nicht in den Soldaten hineinragt
+    parachute.body.setSize(50,20,0,-20);
     paratrooper.enableBody = true;
     paratrooper.physicsBodyType = Phaser.Physics.ARCADE;
     paratrooper.setAll('checkWorldBounds',true);
@@ -55,25 +52,29 @@ function trooperCheck(game) {
     	//ein Paratrooper ist eine Gruppe mit zwei Kindern
     	//das erste Kind im Array [0] ist der Soldat, [1] ist der Fallschirm
 
-    	//solange der Fallschirm existiert, niedrige Gravitation
-    	if (parachute.exists) {
+    	//solange der Fallschirm "geöffnet" (parachute-Sprite aktiv), niedrige Gravitation
+    	if (parachute.texture.baseTexture.source.name == 'parachute') {
     		paratrooper.setAll('body.gravity.y',20);
 
-    		//wenn ein Paratrooper mit Fallschirm am Boden ankommt, wird er in die landedSoldiers-Gruppe übertragen und aus der Paratroopers-Gruppe entfernt.
+    		//wenn ein Paratrooper mit offenem Fallschirm am Boden ankommt, wird er in die landedSoldiers-Gruppe übertragen und aus der Paratroopers-Gruppe entfernt.
     		if (game.physics.arcade.collide(boden,soldier) == true || game.physics.arcade.collide(landedSoldiers,soldier) == true) { 
     			paratrooper.remove(soldier);
-    			this.landSoldier(soldier,parachute,game);
-    			paratroopers.remove(paratrooper);
+                this.landSoldier(soldier,game);
+                paratrooper.remove(parachute);
+                fallingChutes.add(parachute);
+    			paratrooper.destroy();
     		}
     	}
 
-    	//wenn der Fallschirm nicht existiert, Gravitation erhöhen
+    	//wenn der Fallschirm kaputt ist, Gravitation erhöhen, Bestandteile der Paratrooper-Minigruppe in falling-Gruppen verschieben
+        //und Paratrooper-Minigruppe anschließend zerstören
     	else {
+            paratrooper.remove(parachute);
+            fallingChutes.add(parachute);
     		paratrooper.remove(soldier);
     		fallingSoldiers.add(soldier);
     		fallingSoldiers.setAll('body.gravity.y',500);
-    		paratroopers.remove(paratrooper);
-    		//game.physics.arcade.collide(soldier,landedSoldiers,soldierCollision,null,this);
+    		paratrooper.destroy();
 		}
 
 		//wenn der Soldat nicht mehr existiert, lösche den Fallschirm und zerstöre die Paratrooper-Gruppe
@@ -91,6 +92,8 @@ function trooperCheck(game) {
         game.physics.arcade.collide(fallingSoldiers,parachute,this.destroyParachute,null,this);
         //game.physics.arcade.collide(soldier,landedSoldiers,this.landSoldier,null,this);
 
+        //console.log(parachute.texture.baseTexture.source.name);
+
         i++;
 
     }
@@ -103,17 +106,32 @@ function explodeSoldier(soldier,bullet,game) {
     blood.y = bullet.y;
     blood.start(true,2000,null,50);
     bullet.kill();
-    var i = game.rnd.integerInRange(1,49);
-    if (i==7) {
+
+    //entscheide, ob ein Upgrade droppt...
+    var i = game.rnd.integerInRange(1,2);
+    if (i==1) {
         dropUpgrade(game,soldier);
     }
+
     soldier.kill();
 }
 
 function destroyParachute(parachute,bullet) {
-    parachute.kill();
+    //parachute.kill();
+    parachute.loadTexture('parachute_falling',0);
+    parachute.animations.add('falling',[0,1,2,3,4,5],12,true,true);
+    parachute.animations.play('falling');
+    parachute.body.gravity.y = 500;
     //bullet.kill();
     score += 10;
+}
+
+function landParachute(boden,parachute) {
+    //parachute.position.y += 5;
+    parachute.loadTexture('parachute_falling',6);
+    parachute.animations.add('landing',[6,7,8,9,10,11],18,false);
+    parachute.body.enable = false;
+    parachute.animations.play('landing',18,false,true);
 }
 
 function splatSoldier(boden,fallingSoldier) {
@@ -124,13 +142,13 @@ function splatSoldier(boden,fallingSoldier) {
     fallingSoldier.destroy();
 }
 
-function landSoldier(soldier,parachute,game) {
-    parachute.kill();
+function landSoldier(soldier,game) {
+    //parachute.kill();
     soldier.loadTexture('landedSoldier',0);
     soldier.animations.add('shoot',null,15,true,true);
     soldier.animations.play('shoot');
     soldier.body.gravity.y = 500;
-    soldier.body.setSize(10,40,8,0);
+    soldier.body.setSize(10,40,6,0);
     landedSoldiers.add(soldier);
     //timer überprüft nach einer Sekunde mit checkSoldierHeight, ob der Soldat über 120 Pixel hinaus ragt,
     //um GameOver direkt bei Landung eines dritten Soldaten zu vermeiden

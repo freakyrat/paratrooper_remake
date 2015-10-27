@@ -1,13 +1,15 @@
-var gameOver = function(game){}
+var gameOver = function(game,score){}
 
 gameOver.prototype = {
-	init: function(score){
+	/*init: function(score){
 		alert("You scored: "+score)
-	},
+	},*/
   	create: function(){
-  		var gameOverTitle = this.game.add.sprite(160,160,"gameover");
+  		var gameOverTitle = this.game.add.bitmapText(this.game.world.width/2,this.game.world.height/2, 'carrier_command','GAME OVER!',40);
 		gameOverTitle.anchor.setTo(0.5,0.5);
-		var playButton = this.game.add.button(160,320,"play",this.playTheGame,this);
+		var scoreText = this.game.add.bitmapText(this.game.world.width/2,this.game.world.height/2+50, 'carrier_command','SCORE: ' + score,20);
+		scoreText.anchor.setTo(0.5,0.5);
+		var playButton = this.game.add.button(this.game.world.width/2,this.game.world.height/2+150,"play",this.playTheGame,this);
 		playButton.anchor.setTo(0.5,0.5);
 	},
 	playTheGame: function(){
